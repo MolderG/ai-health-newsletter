@@ -9,7 +9,6 @@ function normalizeEventType(resendType: string): string {
     'email.clicked': 'click',
     'email.unsubscribed': 'unsubscribe',
     'email.bounced': 'bounce',
-    'email.spam_complaint': 'bounce',
   }
   return map[resendType] ?? resendType
 }

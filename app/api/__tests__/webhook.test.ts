@@ -6,6 +6,10 @@ const mockInsert = vi.fn().mockResolvedValue({ error: null })
 const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'sub-1', lead_score: 10 }, error: null })
 const mockSelect = vi.fn().mockReturnThis()
 
+vi.mock('@/lib/lead-scoring', () => ({
+  calculateScoreDelta: vi.fn().mockReturnValue(2),
+}))
+
 vi.mock('@/lib/supabase-server', () => ({
   createServerClient: () => ({
     from: () => ({
