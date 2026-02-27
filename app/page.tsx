@@ -1,6 +1,12 @@
 import SubscribeForm from '@/components/SubscribeForm'
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ confirmed?: string }>
+}) {
+  const { confirmed } = await searchParams
+
   return (
     <main className="min-h-screen bg-white">
       {/* Hero */}
@@ -22,11 +28,32 @@ export default function Home() {
       {/* Form */}
       <section className="py-16 px-6 bg-gray-50">
         <div className="max-w-md mx-auto text-center space-y-8">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Receba gratuitamente</h2>
-            <p className="text-gray-500 mt-2">Para gestores, diretores e profissionais de TI hospitalar</p>
-          </div>
-          <SubscribeForm />
+          {confirmed === 'true' ? (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-8 space-y-3">
+              <div className="text-4xl">✅</div>
+              <h2 className="text-2xl font-bold text-green-800">Assinatura confirmada!</h2>
+              <p className="text-green-700">
+                Bem-vindo(a) à AI Health Newsletter. Você receberá a próxima edição em breve.
+              </p>
+            </div>
+          ) : confirmed === 'error' ? (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-8 space-y-3">
+              <div className="text-4xl">❌</div>
+              <h2 className="text-2xl font-bold text-red-800">Link inválido ou expirado</h2>
+              <p className="text-red-700">
+                Não foi possível confirmar sua assinatura. Tente se cadastrar novamente.
+              </p>
+              <SubscribeForm />
+            </div>
+          ) : (
+            <>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Receba gratuitamente</h2>
+                <p className="text-gray-500 mt-2">Para gestores, diretores e profissionais de TI hospitalar</p>
+              </div>
+              <SubscribeForm />
+            </>
+          )}
         </div>
       </section>
 
