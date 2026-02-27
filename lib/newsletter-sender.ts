@@ -42,7 +42,7 @@ export async function sendNewsletter(emailId: string): Promise<{ sent: number; e
           subject: email.subject,
           html: email.content_html,
           headers: {
-            'List-Unsubscribe': `<${process.env.NEXT_PUBLIC_BASE_URL}/api/unsubscribe?email=${sub.email}>`,
+            'List-Unsubscribe': `<${process.env.NEXT_PUBLIC_BASE_URL}/api/unsubscribe?email=${encodeURIComponent(sub.email)}>`,
           },
         })
       )
@@ -51,11 +51,13 @@ export async function sendNewsletter(emailId: string): Promise<{ sent: number; e
     errors += results.filter(r => r.status === 'rejected').length
   }
 
-  // Mark as sent
-  await supabase
-    .from('emails')
-    .update({ status: 'sent', sent_at: new Date().toISOString() })
-    .eq('id', emailId)
+  // Mark as sent only if at least one email was delivered
+  if (sent > 0) {
+    await supabase
+      .from('emails')
+      .update({ status: 'sent', sent_at: new Date().toISOString() })
+      .eq('id', emailId)
+  }
 
   return { sent, errors }
 }
