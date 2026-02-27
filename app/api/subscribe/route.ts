@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
   if (emailError) {
     console.error('Resend error:', emailError)
-    return NextResponse.json({ error: 'Failed to send confirmation email', details: emailError }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to send confirmation email' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })
