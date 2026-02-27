@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-const ROLES = ['Diretor', 'Gestor Hospitalar', 'TI / Tecnologia', 'Outro']
+const ROLES = ['Diretor', 'Gestor Hospitalar', 'TI/Tecnologia', 'Outro']
 
 export default function SubscribeForm() {
   const [form, setForm] = useState({ name: '', email: '', role: '', hospital: '', city: '', state: '' })
@@ -22,19 +22,24 @@ export default function SubscribeForm() {
     const params = new URLSearchParams(window.location.search)
     const utm = params.get('utm_source') ?? 'direct'
 
-    const res = await fetch(`/api/subscribe?utm_source=${utm}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    })
+    try {
+      const res = await fetch(`/api/subscribe?utm_source=${utm}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
 
-    if (res.ok) {
-      router.push('/obrigado')
-    } else {
-      const data = await res.json()
-      setError(data.error ?? 'Erro ao realizar cadastro. Tente novamente.')
+      if (res.ok) {
+        router.push('/obrigado')
+      } else {
+        const data = await res.json()
+        setError(data.error ?? 'Erro ao realizar cadastro. Tente novamente.')
+      }
+    } catch {
+      setError('Erro de conexão. Tente novamente.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
