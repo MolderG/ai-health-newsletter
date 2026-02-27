@@ -9,13 +9,14 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createServerClient()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('subscribers')
     .update({ status: 'active', confirmed_at: new Date().toISOString() })
     .eq('confirmation_token', token)
     .eq('status', 'pending')
+    .select('id')
 
-  if (error) {
+  if (error || !data || data.length === 0) {
     return NextResponse.redirect(new URL('/?confirmed=error', request.url))
   }
 

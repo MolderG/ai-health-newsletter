@@ -1,12 +1,20 @@
 import { describe, it, expect, vi } from 'vitest'
 
+const mockSingle = vi.fn().mockResolvedValue({ data: null, error: null })
+const mockEq = vi.fn().mockReturnThis()
+const mockSelect = vi.fn().mockReturnThis()
+const mockInsert = vi.fn().mockReturnValue({
+  select: mockSelect,
+  single: mockSingle,
+})
+
 vi.mock('@/lib/supabase-server', () => ({
   createServerClient: () => ({
     from: () => ({
-      insert: vi.fn().mockResolvedValue({ error: null }),
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({ data: null, error: null }),
+      insert: mockInsert,
+      select: mockSelect,
+      eq: mockEq,
+      single: mockSingle,
     }),
   }),
 }))

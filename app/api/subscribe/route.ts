@@ -3,8 +3,9 @@ import { Resend } from 'resend'
 import { createServerClient } from '@/lib/supabase-server'
 import { confirmationEmail } from '@/lib/email-templates'
 
+const resend = new Resend(process.env.RESEND_API_KEY)
+
 export async function POST(request: NextRequest) {
-  const resend = new Resend(process.env.RESEND_API_KEY)
   const body = await request.json()
   const { name, email, role, hospital, city, state } = body
 
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
   const confirmUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/confirm?token=${confirmationToken}`
 
   const { error: emailError } = await resend.emails.send({
-    from: 'AI Health Newsletter <newsletter@seudominio.com.br>',
+    from: `AI Health Newsletter <${process.env.RESEND_FROM_EMAIL ?? 'newsletter@seudominio.com.br'}>`,
     to: email,
     subject: 'Confirme sua assinatura — AI Health Newsletter',
     html: confirmationEmail(name, confirmUrl),
