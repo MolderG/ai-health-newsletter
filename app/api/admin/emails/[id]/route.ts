@@ -22,9 +22,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { id } = await params
   const supabase = createServerClient()
   const body = await request.json()
+
+  // Only allow editing these fields
+  const { subject, preview_text, content_html } = body
+  const allowedFields: Record<string, unknown> = {}
+  if (subject !== undefined) allowedFields.subject = subject
+  if (preview_text !== undefined) allowedFields.preview_text = preview_text
+  if (content_html !== undefined) allowedFields.content_html = content_html
+
   const { data, error } = await supabase
     .from('emails')
-    .update(body)
+    .update(allowedFields)
     .eq('id', id)
     .select()
     .single()

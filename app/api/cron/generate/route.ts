@@ -14,15 +14,21 @@ export async function GET(request: NextRequest) {
     const result = await generateNewsletter(news)
 
     const supabase = createServerClient()
-    await supabase.from('emails').insert({
-      content_html: result.winningContent,
-      winning_model: result.winningModel,
-      evaluator_justification: result.justification,
-      model_outputs: result.allOutputs,
-      status: 'draft',
-    })
+    const { data, error: insertError } = await supabase
+      .from('emails')
+      .insert({
+        content_html: result.winningContent,
+        winning_model: result.winningModel,
+        evaluator_justification: result.justification,
+        model_outputs: result.allOutputs,
+        status: 'draft',
+      })
+      .select('id')
+      .single()
 
-    return NextResponse.json({ ok: true, winningModel: result.winningModel })
+    if (insertError) throw insertError
+
+    return NextResponse.json({ ok: true, winningModel: result.winningModel, id: data.id })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 500 })
