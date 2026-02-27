@@ -46,3 +46,8 @@ create index on subscribers(status);
 create index on email_events(subscriber_id);
 create index on email_events(email_id);
 create index on email_events(event_type);
+
+-- Row Level Security: block all direct client access (all writes go through server-side API routes)
+alter table subscribers enable row level security;
+alter table emails enable row level security;
+alter table email_events enable row level security;
