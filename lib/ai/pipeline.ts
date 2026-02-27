@@ -81,10 +81,12 @@ export async function generateNewsletter(news: string): Promise<PipelineResult> 
   }
 
   const winnerIndex = evaluation.winner.charCodeAt(0) - 65
-  const winningModel = allOutputs[winnerIndex]?.model ?? allOutputs[0].model
+  const isValidIndex = winnerIndex >= 0 && winnerIndex < allOutputs.length
+  const winningModel = isValidIndex ? allOutputs[winnerIndex].model : allOutputs[0].model
+  const winningContent = isValidIndex ? evaluation.content : allOutputs[0].content
 
   return {
-    winningContent: evaluation.content,
+    winningContent,
     winningModel,
     justification: evaluation.justification,
     allOutputs,
