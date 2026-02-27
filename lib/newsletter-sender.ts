@@ -19,6 +19,7 @@ export async function sendNewsletter(emailId: string): Promise<{ sent: number; e
 
   if (!email) throw new Error('Email not found')
   if (!email.subject) throw new Error('Email has no subject')
+  if (email.status === 'sent') throw new Error('Newsletter already sent')
 
   // Get all active subscribers
   const { data: subscribers } = await supabase
@@ -41,6 +42,7 @@ export async function sendNewsletter(emailId: string): Promise<{ sent: number; e
           to: sub.email,
           subject: email.subject,
           html: email.content_html,
+          tags: [{ name: 'email_id', value: emailId }],
           headers: {
             'List-Unsubscribe': `<${process.env.NEXT_PUBLIC_BASE_URL}/api/unsubscribe?email=${encodeURIComponent(sub.email)}>`,
           },

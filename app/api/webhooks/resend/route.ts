@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Webhook } from 'svix'
 import { createServerClient } from '@/lib/supabase-server'
 import { calculateScoreDelta } from '@/lib/lead-scoring'
 
@@ -14,14 +15,45 @@ function normalizeEventType(resendType: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  const payload = await request.json()
+  // Verify Resend webhook signature
+  const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
+  let payload: { type: string; data: Record<string, unknown> }
+
+  if (webhookSecret) {
+    const wh = new Webhook(webhookSecret)
+    const svixId = request.headers.get('svix-id')
+    const svixTimestamp = request.headers.get('svix-timestamp')
+    const svixSignature = request.headers.get('svix-signature')
+
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      return NextResponse.json({ error: 'Missing svix headers' }, { status: 400 })
+    }
+
+    const body = await request.text()
+    try {
+      wh.verify(body, {
+        'svix-id': svixId,
+        'svix-timestamp': svixTimestamp,
+        'svix-signature': svixSignature,
+      })
+    } catch {
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
+    }
+
+    payload = JSON.parse(body)
+  } else {
+    payload = await request.json()
+  }
+
   const { type, data } = payload
 
   if (!type) {
     return NextResponse.json({ error: 'Missing event type' }, { status: 400 })
   }
 
-  const email = data?.email_to?.[0] ?? data?.to?.[0]
+  const emailTo = data?.email_to as string[] | undefined
+  const emailToAlt = data?.to as string[] | undefined
+  const email = emailTo?.[0] ?? emailToAlt?.[0]
   if (!email) return NextResponse.json({ ok: true })
 
   const supabase = createServerClient()
@@ -36,11 +68,17 @@ export async function POST(request: NextRequest) {
   if (!subscriber) return NextResponse.json({ ok: true })
 
   const eventType = normalizeEventType(type)
-  const urlClicked = data?.click?.link ?? null
+  const clickData = data?.click as { link?: string } | undefined
+  const urlClicked = clickData?.link ?? null
+
+  // Extract email_id from tags to link event to the edition
+  const tags = data?.tags as Array<{ name: string; value: string }> | undefined
+  const emailId = tags?.find((t) => t.name === 'email_id')?.value ?? null
 
   // Save event
   await supabase.from('email_events').insert({
     subscriber_id: subscriber.id,
+    email_id: emailId,
     event_type: eventType,
     url_clicked: urlClicked,
   })
