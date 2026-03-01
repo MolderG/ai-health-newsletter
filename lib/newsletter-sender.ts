@@ -24,7 +24,7 @@ export async function sendNewsletter(emailId: string): Promise<{ sent: number; e
   // Get all active subscribers
   const { data: subscribers } = await supabase
     .from('subscribers')
-    .select('id, email, name')
+    .select('id, email, name, confirmation_token')
     .eq('status', 'active')
 
   if (!subscribers?.length) return { sent: 0, errors: 0 }
@@ -36,18 +36,25 @@ export async function sendNewsletter(emailId: string): Promise<{ sent: number; e
   for (let i = 0; i < subscribers.length; i += 50) {
     const batch = subscribers.slice(i, i + 50)
     const results = await Promise.allSettled(
-      batch.map(sub =>
-        getResend().emails.send({
+      batch.map(sub => {
+        const unsubscribeUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/cancelar?token=${sub.confirmation_token}`
+        const footerHtml = `
+  <div style="text-align:center;padding:16px;font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb;margin-top:32px">
+    Você está recebendo este email porque se inscreveu no newsletter.<br>
+    <a href="${unsubscribeUrl}" style="color:#6b7280">Cancelar inscrição</a>
+  </div>
+`
+        return getResend().emails.send({
           from: `AI Health Newsletter <${process.env.RESEND_FROM_EMAIL ?? 'newsletter@seudominio.com.br'}>`,
           to: sub.email,
           subject: email.subject,
-          html: email.content_html,
+          html: email.content_html + footerHtml,
           tags: [{ name: 'email_id', value: emailId }],
           headers: {
-            'List-Unsubscribe': `<${process.env.NEXT_PUBLIC_BASE_URL}/api/unsubscribe?email=${encodeURIComponent(sub.email)}>`,
+            'List-Unsubscribe': `<${unsubscribeUrl}>`,
           },
         })
-      )
+      })
     )
     sent += results.filter(r => r.status === 'fulfilled').length
     errors += results.filter(r => r.status === 'rejected').length
