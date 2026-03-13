@@ -41,16 +41,26 @@ function NewsletterCard({ item }: { item: NewsletterItem }) {
     <Card className="flex flex-col overflow-hidden border border-zinc-200 shadow-sm hover:shadow-md transition-shadow duration-200">
       {/* Visual header */}
       <div
-        className={`h-36 flex items-center justify-center ${
+        className={`relative h-36 flex items-center justify-center overflow-hidden ${
           item.isPlaceholder
-            ? 'bg-zinc-100'
-            : 'bg-gradient-to-br from-blue-50 to-indigo-100'
+            ? 'bg-slate-100'
+            : 'bg-gradient-to-br from-[#0B1120] via-slate-800 to-teal-900'
         }`}
       >
+        {!item.isPlaceholder && (
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage: 'radial-gradient(ellipse 60% 80% at 50% 120%, rgba(52,211,153,0.4) 0%, transparent 70%)',
+            }}
+          />
+        )}
         {item.isPlaceholder ? (
           <FileText className="h-10 w-10 text-zinc-300" />
         ) : (
-          <Mail className="h-10 w-10 text-indigo-400" />
+          <div className="relative z-10 h-12 w-12 rounded-xl bg-emerald-400/20 border border-emerald-400/30 flex items-center justify-center">
+            <Mail className="h-6 w-6 text-emerald-400" />
+          </div>
         )}
       </div>
 
@@ -112,9 +122,9 @@ export default async function RecentNewsletters() {
   const items: NewsletterItem[] = [...sent, ...placeholders]
 
   return (
-    <section className="py-14 bg-zinc-50 border-y border-zinc-100">
+    <section className="py-14 bg-slate-50 border-y border-zinc-100">
       <div className="max-w-6xl mx-auto px-6">
-        <h2 className="text-lg font-semibold text-zinc-700 text-center mb-8">
+        <h2 className="font-serif italic text-2xl text-zinc-700 text-center mb-8">
           Últimas edições publicadas
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

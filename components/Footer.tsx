@@ -1,27 +1,33 @@
 import Link from 'next/link'
-import { Heart } from 'lucide-react'
-import { Separator } from '@/components/ui/separator'
+import { Activity } from 'lucide-react'
 
 export default function Footer() {
   return (
-    <footer className="bg-slate-50 border-t border-zinc-200 py-8">
+    <footer className="bg-[#0B1120] border-t border-white/10 py-8">
       <div className="max-w-6xl mx-auto px-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-zinc-700 font-medium">
-            <Heart className="h-4 w-4 text-blue-600" strokeWidth={2.5} />
-            <span>AI Health Newsletter</span>
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-emerald-400 flex items-center justify-center shrink-0">
+              <Activity className="h-3.5 w-3.5 text-[#0B1120]" strokeWidth={2.5} />
+            </div>
+            <span className="text-white font-medium">AI Health Newsletter</span>
           </div>
-          <div className="flex items-center gap-4 text-sm text-zinc-500">
-            <Link href="/privacidade" className="hover:text-zinc-800 transition-colors">
+          <div className="flex items-center gap-6 text-sm">
+            <Link
+              href="/privacidade"
+              className="text-slate-400 hover:text-emerald-400 transition-colors duration-200"
+            >
               Política de privacidade
             </Link>
-            <Separator orientation="vertical" className="h-4" />
-            <Link href="/cancelar" className="hover:text-zinc-800 transition-colors">
+            <Link
+              href="/cancelar"
+              className="text-slate-400 hover:text-emerald-400 transition-colors duration-200"
+            >
               Cancelar inscrição
             </Link>
           </div>
         </div>
-        <p className="mt-4 text-center sm:text-left text-xs text-zinc-400">
+        <p className="mt-4 text-center sm:text-left text-xs text-slate-600">
           © 2025 AI Health Newsletter. Todos os direitos reservados.
         </p>
       </div>

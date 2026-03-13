@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulseEmerald {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  50% { box-shadow: 0 0 0 8px rgba(52, 211, 153, 0.2); }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -24,6 +45,13 @@
     --input: 240 5.9% 90%;
     --ring: 240 10% 3.9%;
     --radius: 0.5rem;
+
+    --color-navy: #0B1120;
+    --color-emerald: #34D399;
+    --color-slate-950: #0F172A;
+    --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+    --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
+    --font-mono: var(--font-dm-mono), ui-monospace, monospace;
   }
 
   .dark {
@@ -55,5 +83,55 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
   }
+}
+
+@layer utilities {
+  .font-serif {
+    font-family: var(--font-serif);
+  }
+  .font-sans {
+    font-family: var(--font-sans);
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  .bg-hero-mesh {
+    background-color: #0B1120;
+    background-image: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(52, 211, 153, 0.15) 0%, transparent 70%);
+  }
+
+  .noise-overlay {
+    position: relative;
+  }
+
+  .noise-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .animate-fade-up {
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease both;
+  }
+
+  .animate-pulse-emerald {
+    animation: pulseEmerald 2s ease-in-out infinite;
+  }
+
+  .animation-delay-100 { animation-delay: 100ms; }
+  .animation-delay-200 { animation-delay: 200ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+  .animation-delay-400 { animation-delay: 400ms; }
+  .animation-delay-500 { animation-delay: 500ms; }
 }
