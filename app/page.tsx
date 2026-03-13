@@ -1,6 +1,6 @@
 import Header from '@/components/Header'
 import HeroSection from '@/components/HeroSection'
-import SocialProof from '@/components/SocialProof'
+import RecentNewsletters from '@/components/RecentNewsletters'
 import ValueProps from '@/components/ValueProps'
 import Footer from '@/components/Footer'
 
@@ -15,7 +15,7 @@ export default async function Home({
     <main className="min-h-screen bg-white">
       <Header />
       <HeroSection confirmed={confirmed} />
-      <SocialProof />
+      <RecentNewsletters />
       <ValueProps />
       <Footer />
     </main>
