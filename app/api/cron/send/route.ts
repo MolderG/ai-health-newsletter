@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       const result = await sendNewsletter(email.id)
       await supabase
         .from('emails')
-        .update({ approval_status: 'sent' })
+        .update({ approval_status: 'sent', status: 'sent' })
         .eq('id', email.id)
       return NextResponse.json({ ok: true, ...result })
     } catch (err) {
@@ -59,13 +59,17 @@ export async function GET(request: NextRequest) {
     .single()
 
   if (pendingEmail) {
+    const missedMsgId = await sendMissedSendNotification().catch(() => null)
     await supabase
       .from('emails')
-      .update({ send_immediately: true })
+      .update({
+        send_immediately: true,
+        ...(missedMsgId ? { telegram_message_id: missedMsgId } : {}),
+      })
       .eq('id', pendingEmail.id)
+  } else {
+    await sendMissedSendNotification().catch(() => {})
   }
-
-  await sendMissedSendNotification().catch(() => {})
 
   return NextResponse.json({ ok: true, sent: 0, notified: true })
 }

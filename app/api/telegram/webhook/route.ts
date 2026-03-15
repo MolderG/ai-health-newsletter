@@ -121,6 +121,12 @@ export async function POST(request: NextRequest) {
     const feedback = update.message.text
     await sendTelegramMessage('Recebido! Gerando nova versão...')
 
+    // Optimistically mark as pending_approval to prevent double-processing on Telegram retries
+    await supabase
+      .from('emails')
+      .update({ approval_status: 'pending_approval', approval_feedback: feedback })
+      .eq('id', email.id)
+
     // After responding 200, run regeneration asynchronously
     after(async () => {
       try {

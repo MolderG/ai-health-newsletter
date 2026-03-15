@@ -53,6 +53,11 @@ export async function removeInlineKeyboard(messageId: number): Promise<void> {
   })
 }
 
+// Escape special characters for Telegram Markdown parse mode
+function escapeMd(text: string): string {
+  return text.replace(/[_*`[]/g, '\\$&')
+}
+
 export async function sendDraftNotification(params: {
   subject: string
   previewText: string
@@ -69,10 +74,10 @@ export async function sendDraftNotification(params: {
   const text = [
     `📰 *Newsletter — Semana de ${date}*`,
     '',
-    `📌 *Temas:* ${params.subject}`,
+    `📌 *Temas:* ${escapeMd(params.subject)}`,
     '',
     `📝 *Carta editorial:*`,
-    `${preview}${ellipsis}`,
+    `${escapeMd(preview)}${ellipsis}`,
     '',
     `🔗 [Visualizar draft completo](${previewUrl})`,
   ].join('\n')
