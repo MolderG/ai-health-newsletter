@@ -1,45 +1,126 @@
 import { generateWithModel } from './openrouter'
+import { renderNewsletterHTML, type NewsletterContent } from './newsletter-template'
 
 const GENERATION_MODELS = [
-  'minimax/minimax-m2.5',
   'deepseek/deepseek-v3.2',
-  'x-ai/grok-4.1-fast',
+  'google/gemini-3-flash-preview',
+  'qwen/qwen3.5-397b-a17b',
+  'moonshotai/kimi-k2.5',
 ] as const
 
-const EVALUATOR_MODEL = 'google/gemini-3-flash-preview'
+const EVALUATOR_MODEL = 'google/gemini-3.1-pro-preview'
 
-function buildGenerationPrompt(news: string): string {
-  return `Você é um especialista em gestão hospitalar e IA na saúde, escrevendo para diretores e gestores de hospitais brasileiros.
+// Helper — strip HTML tags and normalize whitespace
+function extractPlainText(html: string): string {
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
 
-Com base nas notícias abaixo, escreva uma edição completa de newsletter semanal em HTML com:
-1. Editorial de abertura: 2-3 parágrafos com perspectiva consultiva
-2. 3 a 5 notícias comentadas: título + resumo + "O que isso significa para seu hospital"
-3. CTA final sutil: convide o leitor a refletir sobre como dados integrados podem ajudar — inclua o texto "saiba mais" com href="https://weknow.com.br?ref=cta-comercial"
+function buildGenerationPrompt(news: string, feedback?: string): string {
+  const feedbackBlock = feedback
+    ? `\n\n---\n\nNOTA DO EDITOR (melhorias solicitadas — aplique em TODAS as seções):\n${feedback}\n\n---`
+    : ''
+  return `Você é Henrique, curador da newsletter "AI Health" — escrita para diretores, superintendentes e gestores de hospitais brasileiros.
+Seu tom é o de um colega experiente de campo: consultivo, direto, sem jargão técnico excessivo.
+Você escreve como Andrew Ng escreve "The Batch": opinião editorial clara, dados com fonte, estrutura consistente.
 
-Tom: consultivo, direto, sem jargão técnico excessivo. Foco em impacto prático na gestão.
+---
 
-NOTÍCIAS:
-${news}
+Com base nas notícias abaixo, gere o conteúdo de uma edição completa seguindo EXATAMENTE as regras abaixo.
 
-Responda APENAS com o HTML da newsletter, sem explicações.`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CAMPO "subject"
+Lista os 3-4 temas da edição separados por vírgula. Ex: "IA prevê reinternações, glosas em tempo real, o custo do leito ocioso, regulação de IA na ANS"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CAMPO "carta" (HTML simples, apenas <p> e <a>)
+- Tom: primeira pessoa, reflexivo, conversa entre colegas de campo
+- 3 a 5 parágrafos curtos (2-3 linhas cada), cada um num <p>
+- Uma opinião, reflexão ou provocação sobre um tema quente da semana
+- Pode mencionar visitas a hospitais, conversas com gestores, observações do mercado
+- Termina SEMPRE com um parágrafo: "Boa leitura,<br>Henrique"
+- NUNCA seja promocional aqui. Zero menção a produtos ou empresas.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CAMPO "materias" (array de 3 a 4 objetos)
+Misture os temas: 1-2 sobre IA/tecnologia, 1 sobre gestão/indicadores, 1 sobre regulação/mercado.
+
+Cada matéria tem os campos:
+- "titulo": frase-manchete descritiva
+- "oQueAconteceu": 2-3 frases. O fato concreto — quem fez, o quê, quando. Cite a fonte entre parênteses.
+- "comoFunciona": 3-5 frases. Explicação acessível da tecnologia ou mudança.
+- "porQueImporta": 2-4 frases. Implicação prática para a gestão hospitalar brasileira.
+- "nossaVisao": 1-3 frases. Opinião editorial do Henrique. Tom de quem está no campo.
+
+TODOS os campos são texto puro (sem HTML, sem bullet points).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CAMPO "numeroDaSemana" (opcional — null se não houver dado impactante)
+- "numero": o dado em destaque, ex: "23 dias"
+- "contexto": frase explicando o dado
+- "fonte": fonte entre parênteses
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CAMPO "blocoPromo": sempre null por enquanto
+
+---
+
+REGRAS DE ESCRITA:
+- Português brasileiro, frases curtas, parágrafos de 2-3 linhas
+- NUNCA use: "nesse sentido", "diante disso", "vale ressaltar", "no cenário atual", "é fundamental", "cada vez mais"
+- SEMPRE cite a fonte de dados entre parênteses
+- Se não houver fonte verificável, use "em um caso recente" ou "em hospitais que acompanhamos"
+- NUNCA invente estatísticas
+- Máximo 3 emojis em toda a edição
+- Não mencione WeKnow no conteúdo editorial
+- Escreva em prosa corrida — sem bullet points
+
+---
+
+NOTÍCIAS DA SEMANA:
+${news}${feedbackBlock}
+
+---
+
+Retorne APENAS um JSON válido no seguinte formato (sem markdown, sem texto fora do JSON):
+{
+  "subject": "tema1, tema2, tema3",
+  "carta": "<p>...</p><p>...</p>",
+  "materias": [
+    {
+      "titulo": "...",
+      "oQueAconteceu": "...",
+      "comoFunciona": "...",
+      "porQueImporta": "...",
+      "nossaVisao": "..."
+    }
+  ],
+  "numeroDaSemana": {
+    "numero": "23 dias",
+    "contexto": "...",
+    "fonte": "..."
+  },
+  "blocoPromo": null
+}`
 }
 
 function buildEvaluatorPrompt(outputs: { model: string; content: string }[]): string {
-  return `Você é um especialista em comunicação para o setor de saúde. Avalie os ${outputs.length} rascunhos de newsletter abaixo e escolha o melhor.
+  return `Você é editor-chefe de uma newsletter de referência para gestores hospitalares brasileiros. Avalie os ${outputs.length} rascunhos JSON abaixo e escolha o melhor.
 
-Critérios:
-- Clareza e tom consultivo adequado para gestores hospitalares
-- Relevância prática do conteúdo
-- Qualidade e naturalidade do CTA
-- Precisão e coerência das informações
+Critérios de avaliação (em ordem de prioridade):
+1. JSON válido e completo com todos os campos obrigatórios?
+2. Tom correto na carta? (consultivo, direto, primeira pessoa, sem linguagem corporativa genérica)
+3. Fontes citadas nas matérias?
+4. Prosa corrida nas subseções (sem bullet points)?
+5. Ausência de frases proibidas: "nesse sentido", "diante disso", "vale ressaltar", "no cenário atual", "é fundamental", "cada vez mais"
+6. Relevância prática para gestão hospitalar brasileira (glosas, leitos, faturamento, dados)
+7. 3 a 4 matérias cobrindo temas variados (IA, gestão, regulação)
 
 ${outputs.map((o, i) => `=== RASCUNHO ${String.fromCharCode(65 + i)} (${o.model}) ===\n${o.content}`).join('\n\n')}
 
-Responda APENAS com JSON no formato:
+Responda APENAS com JSON no formato (sem nenhum outro texto):
 {
-  "winner": "A" | "B" | "C",
-  "justification": "motivo em 2-3 frases",
-  "content": "[copie aqui o HTML do rascunho vencedor exatamente como está]"
+  "winner": "A",
+  "justification": "motivo em 2-3 frases"
 }`
 }
 
@@ -47,13 +128,18 @@ export interface PipelineResult {
   winningContent: string
   winningModel: string
   justification: string
+  subject: string
+  previewText: string          // NEW: plain text excerpt of the carta editorial
   allOutputs: { model: string; content: string }[]
 }
 
-export async function generateNewsletter(news: string): Promise<PipelineResult> {
-  const prompt = buildGenerationPrompt(news)
+export async function generateNewsletter(
+  news: string,
+  feedback?: string,        // NEW optional param
+): Promise<PipelineResult> {
+  const prompt = buildGenerationPrompt(news, feedback)
 
-  // Run 3 models in parallel — if one fails, continue with the rest
+  // Run all models in parallel — if one fails, continue with the rest
   const results = await Promise.allSettled(
     GENERATION_MODELS.map(model => generateWithModel(model, prompt))
   )
@@ -71,24 +157,39 @@ export async function generateNewsletter(news: string): Promise<PipelineResult> 
   const evaluatorPrompt = buildEvaluatorPrompt(allOutputs)
   const evaluationRaw = await generateWithModel(EVALUATOR_MODEL, evaluatorPrompt)
 
-  let evaluation: { winner: string; justification: string; content: string }
+  let evaluation: { winner: string; justification: string }
   try {
-    const jsonMatch = evaluationRaw.match(/\{[\s\S]*\}/)
+    const jsonMatch = evaluationRaw.match(/\{[\s\S]*?\}/)
     evaluation = JSON.parse(jsonMatch?.[0] ?? evaluationRaw)
   } catch {
     // Fallback: use first output if parsing fails
-    evaluation = { winner: 'A', justification: 'Avaliação automática falhou', content: allOutputs[0].content }
+    evaluation = { winner: 'A', justification: 'Avaliação automática falhou' }
   }
 
   const winnerIndex = evaluation.winner.charCodeAt(0) - 65
   const isValidIndex = winnerIndex >= 0 && winnerIndex < allOutputs.length
   const winningModel = isValidIndex ? allOutputs[winnerIndex].model : allOutputs[0].model
-  const winningContent = isValidIndex ? evaluation.content : allOutputs[0].content
+  // Use the raw model output directly — avoids JSON-inside-JSON encoding issues
+  const winningRaw = isValidIndex ? allOutputs[winnerIndex].content : allOutputs[0].content
+
+  // Parse the winning JSON and render HTML
+  let newsletterData: NewsletterContent
+  try {
+    const jsonMatch = winningRaw.match(/\{[\s\S]*\}/)
+    newsletterData = JSON.parse(jsonMatch?.[0] ?? winningRaw)
+  } catch {
+    throw new Error('Failed to parse winning newsletter JSON')
+  }
+
+  const winningContent = renderNewsletterHTML(newsletterData)
+  const previewText = extractPlainText(newsletterData.carta)
 
   return {
     winningContent,
     winningModel,
     justification: evaluation.justification,
+    subject: newsletterData.subject,
+    previewText,              // NEW
     allOutputs,
   }
 }
