@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
 import { searchHealthAINews } from '@/lib/ai/perplexity'
 import { generateNewsletter } from '@/lib/ai/pipeline'
+import { verifyAdmin } from '@/lib/admin-auth'
 
 export async function POST(request: NextRequest) {
-  const adminToken = request.cookies.get('admin_token')?.value
-  if (adminToken !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = verifyAdmin(request)
+  if (authError) return authError
 
   try {
     // 1. Search for news

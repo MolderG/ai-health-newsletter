@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendNewsletter } from '@/lib/newsletter-sender'
+import { verifyAdmin } from '@/lib/admin-auth'
 
 export async function POST(request: NextRequest) {
-  const adminToken = request.cookies.get('admin_token')?.value
-  if (adminToken !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = verifyAdmin(request)
+  if (authError) return authError
 
   const { emailId } = await request.json()
   if (!emailId) return NextResponse.json({ error: 'Missing emailId' }, { status: 400 })

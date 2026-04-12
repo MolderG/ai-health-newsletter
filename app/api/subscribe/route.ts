@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createServerClient } from '@/lib/supabase-server'
 import { confirmationEmail } from '@/lib/email-templates'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 let _resend: Resend | null = null
 function getResend() {
@@ -9,12 +10,35 @@ function getResend() {
   return _resend
 }
 
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000 // 1 hour
+const RATE_LIMIT_PER_IP = 5
+const RATE_LIMIT_PER_EMAIL = 3
+
 export async function POST(request: NextRequest) {
   const body = await request.json()
   const { name, email, role, hospital, city, state } = body
 
   if (!email || !name) {
     return NextResponse.json({ error: 'Name and email are required' }, { status: 400 })
+  }
+
+  // Rate limit by IP
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const ipCheck = await checkRateLimit(`subscribe:ip:${ip}`, RATE_LIMIT_PER_IP, RATE_LIMIT_WINDOW_MS)
+  if (!ipCheck.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Try again later.' },
+      { status: 429, headers: { 'Retry-After': '3600' } },
+    )
+  }
+
+  // Rate limit by email
+  const emailCheck = await checkRateLimit(`subscribe:email:${email}`, RATE_LIMIT_PER_EMAIL, RATE_LIMIT_WINDOW_MS)
+  if (!emailCheck.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests for this email. Try again later.' },
+      { status: 429, headers: { 'Retry-After': '3600' } },
+    )
   }
 
   const source = request.nextUrl.searchParams.get('utm_source') ?? 'direct'

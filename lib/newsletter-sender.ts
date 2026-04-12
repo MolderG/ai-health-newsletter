@@ -7,6 +7,21 @@ function getResend() {
   return _resend
 }
 
+const MAX_RETRIES = 3
+
+async function withRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (attempt === retries) throw err
+      // Exponential backoff: 500ms, 1s, 2s
+      await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt)))
+    }
+  }
+  throw new Error('unreachable')
+}
+
 export async function sendNewsletter(emailId: string): Promise<{ sent: number; errors: number }> {
   const supabase = createServerClient()
 
@@ -44,16 +59,18 @@ export async function sendNewsletter(emailId: string): Promise<{ sent: number; e
     <a href="${unsubscribeUrl}" style="color:#6b7280">Cancelar inscrição</a>
   </div>
 `
-        return getResend().emails.send({
-          from: `AI Health Newsletter <${process.env.RESEND_FROM_EMAIL ?? 'newsletter@seudominio.com.br'}>`,
-          to: sub.email,
-          subject: email.subject,
-          html: email.content_html + footerHtml,
-          tags: [{ name: 'email_id', value: emailId }],
-          headers: {
-            'List-Unsubscribe': `<${unsubscribeUrl}>`,
-          },
-        })
+        return withRetry(() =>
+          getResend().emails.send({
+            from: `AI Health Newsletter <${process.env.RESEND_FROM_EMAIL ?? 'newsletter@seudominio.com.br'}>`,
+            to: sub.email,
+            subject: email.subject,
+            html: email.content_html + footerHtml,
+            tags: [{ name: 'email_id', value: emailId }],
+            headers: {
+              'List-Unsubscribe': `<${unsubscribeUrl}>`,
+            },
+          })
+        )
       })
     )
     sent += results.filter(r => r.status === 'fulfilled').length
