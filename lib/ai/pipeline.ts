@@ -10,11 +10,6 @@ const GENERATION_MODELS = [
 
 const EVALUATOR_MODEL = 'google/gemini-3.1-pro-preview'
 
-// Helper — strip HTML tags and normalize whitespace
-function extractPlainText(html: string): string {
-  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-}
-
 function buildGenerationPrompt(news: string, feedback?: string): string {
   const feedbackBlock = feedback
     ? `\n\n---\n\nNOTA DO EDITOR (melhorias solicitadas — aplique em TODAS as seções):\n${feedback}\n\n---`
@@ -25,23 +20,14 @@ Você escreve como Andrew Ng escreve "The Batch": opinião editorial clara, dado
 
 ---
 
-Com base nas notícias abaixo, gere o conteúdo de uma edição completa seguindo EXATAMENTE as regras abaixo.
+Com base nas notícias aprovadas abaixo, gere o conteúdo de uma edição completa seguindo EXATAMENTE as regras abaixo.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CAMPO "subject"
 Lista os 3-4 temas da edição separados por vírgula. Ex: "IA prevê reinternações, glosas em tempo real, o custo do leito ocioso, regulação de IA na ANS"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CAMPO "carta" (HTML simples, apenas <p> e <a>)
-- Tom: primeira pessoa, reflexivo, conversa entre colegas de campo
-- 3 a 5 parágrafos curtos (2-3 linhas cada), cada um num <p>
-- Uma opinião, reflexão ou provocação sobre um tema quente da semana
-- Pode mencionar visitas a hospitais, conversas com gestores, observações do mercado
-- Termina SEMPRE com um parágrafo: "Boa leitura,<br>Henrique"
-- NUNCA seja promocional aqui. Zero menção a produtos ou empresas.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CAMPO "materias" (array de 3 a 4 objetos)
+CAMPO "materias" (array de 4 a 5 objetos)
 Misture os temas: 1-2 sobre IA/tecnologia, 1 sobre gestão/indicadores, 1 sobre regulação/mercado.
 
 Cada matéria tem os campos:
@@ -76,7 +62,7 @@ REGRAS DE ESCRITA:
 
 ---
 
-NOTÍCIAS DA SEMANA:
+NOTÍCIAS APROVADAS DA SEMANA:
 ${news}${feedbackBlock}
 
 ---
@@ -84,7 +70,6 @@ ${news}${feedbackBlock}
 Retorne APENAS um JSON válido no seguinte formato (sem markdown, sem texto fora do JSON):
 {
   "subject": "tema1, tema2, tema3",
-  "carta": "<p>...</p><p>...</p>",
   "materias": [
     {
       "titulo": "...",
@@ -108,12 +93,11 @@ function buildEvaluatorPrompt(outputs: { model: string; content: string }[]): st
 
 Critérios de avaliação (em ordem de prioridade):
 1. JSON válido e completo com todos os campos obrigatórios?
-2. Tom correto na carta? (consultivo, direto, primeira pessoa, sem linguagem corporativa genérica)
-3. Fontes citadas nas matérias?
-4. Prosa corrida nas subseções (sem bullet points)?
-5. Ausência de frases proibidas: "nesse sentido", "diante disso", "vale ressaltar", "no cenário atual", "é fundamental", "cada vez mais"
-6. Relevância prática para gestão hospitalar brasileira (glosas, leitos, faturamento, dados)
-7. 3 a 4 matérias cobrindo temas variados (IA, gestão, regulação)
+2. Fontes citadas nas matérias?
+3. Prosa corrida nas subseções (sem bullet points)?
+4. Ausência de frases proibidas: "nesse sentido", "diante disso", "vale ressaltar", "no cenário atual", "é fundamental", "cada vez mais"
+5. Relevância prática para gestão hospitalar brasileira (glosas, leitos, faturamento, dados)
+6. 4 a 5 matérias cobrindo temas variados (IA, gestão, regulação)
 
 ${outputs.map((o, i) => `=== RASCUNHO ${String.fromCharCode(65 + i)} (${o.model}) ===\n${o.content}`).join('\n\n')}
 
@@ -182,7 +166,7 @@ export async function generateNewsletter(
   }
 
   const winningContent = renderNewsletterHTML(newsletterData)
-  const previewText = extractPlainText(newsletterData.carta)
+  const previewText = newsletterData.materias.map(m => m.titulo).join(' · ')
 
   return {
     winningContent,

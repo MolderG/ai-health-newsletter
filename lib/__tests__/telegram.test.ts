@@ -61,6 +61,32 @@ describe('removeInlineKeyboard', () => {
   })
 })
 
+describe('sendNewsCandidateNotification', () => {
+  it('sends news with correct callback_data containing candidate ID', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: true, result: { message_id: 10 } }),
+    })
+
+    const { sendNewsCandidateNotification } = await import('@/lib/telegram')
+    const msgId = await sendNewsCandidateNotification({
+      titulo: 'IA em hospitais',
+      resumo: 'Nova aplicação de IA...',
+      fonte: 'Reuters',
+      candidateId: 'test-uuid-123',
+    })
+
+    const body = JSON.parse((mockFetch.mock.calls[0][1] as RequestInit).body as string)
+    expect(body.text).toContain('IA em hospitais')
+    expect(body.text).toContain('Reuters')
+    const buttons = body.reply_markup.inline_keyboard[0]
+    expect(buttons).toHaveLength(2)
+    expect(buttons[0].callback_data).toBe('news_approve:test-uuid-123')
+    expect(buttons[1].callback_data).toBe('news_reject:test-uuid-123')
+    expect(msgId).toBe(10)
+  })
+})
+
 describe('sendDraftNotification', () => {
   it('includes preview URL, subject, and correct callback_data values in keyboard', async () => {
     mockFetch.mockResolvedValueOnce({
@@ -71,16 +97,16 @@ describe('sendDraftNotification', () => {
     const { sendDraftNotification } = await import('@/lib/telegram')
     await sendDraftNotification({
       subject: 'IA em diagnósticos',
-      previewText: 'Esta semana...',
+      previewText: 'Título 1 · Título 2',
       previewToken: 'abc-token',
     })
 
     const body = JSON.parse((mockFetch.mock.calls[0][1] as RequestInit).body as string)
     expect(body.text).toContain('abc-token')
     expect(body.text).toContain('IA em diagnósticos')
+    expect(body.text).not.toContain('Carta editorial')
     const buttons = body.reply_markup.inline_keyboard[0]
     expect(buttons).toHaveLength(2)
-    // These exact values drive the webhook state machine — must not change
     expect(buttons[0].callback_data).toBe('approve')
     expect(buttons[1].callback_data).toBe('reject')
   })
