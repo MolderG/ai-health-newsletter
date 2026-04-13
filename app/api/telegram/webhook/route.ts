@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { after } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
 import { sendNewsletter } from '@/lib/newsletter-sender'
-import { searchHealthAINews } from '@/lib/ai/perplexity'
 import { generateNewsletter } from '@/lib/ai/pipeline'
 import {
   sendTelegramMessage,
@@ -11,6 +10,7 @@ import {
   removeInlineKeyboard,
   sendErrorNotification,
 } from '@/lib/telegram'
+import { getApprovedNewsForGeneration } from '@/lib/ai/news-selection'
 import { randomUUID } from 'crypto'
 
 export const maxDuration = 300
@@ -60,6 +60,35 @@ export async function POST(request: NextRequest) {
   // ── APPROVE / REJECT (inline button) ─────────────────────────────────
   if (update.callback_query) {
     const cbq = update.callback_query
+
+    // ── NEWS CANDIDATE approval (news_approve:<id> / news_reject:<id>) ──
+    if (cbq.data.startsWith('news_approve:') || cbq.data.startsWith('news_reject:')) {
+      const candidateId = cbq.data.split(':')[1]
+      const isApprove = cbq.data.startsWith('news_approve:')
+
+      const { data: candidate } = await supabase
+        .from('news_candidates')
+        .select('id, status')
+        .eq('id', candidateId)
+        .single()
+
+      if (!candidate || candidate.status !== 'pending') {
+        await answerCallbackQuery(cbq.id)
+        return NextResponse.json({ ok: true })
+      }
+
+      await supabase
+        .from('news_candidates')
+        .update({ status: isApprove ? 'approved' : 'not_approved' })
+        .eq('id', candidateId)
+
+      await answerCallbackQuery(cbq.id, isApprove ? '✅ Aprovada' : '❌ Rejeitada')
+      await removeInlineKeyboard(cbq.message.message_id).catch(() => {})
+
+      return NextResponse.json({ ok: true })
+    }
+
+    // ── NEWSLETTER DRAFT approval (approve / reject) ──
     await answerCallbackQuery(cbq.id)
 
     const { data: email } = await getActiveDraft(supabase)
@@ -130,7 +159,7 @@ export async function POST(request: NextRequest) {
     // After responding 200, run regeneration asynchronously
     after(async () => {
       try {
-        const news = await searchHealthAINews()
+        const news = await getApprovedNewsForGeneration(supabase)
         const result = await generateNewsletter(news, feedback)
 
         const previewToken = randomUUID()

@@ -20,8 +20,7 @@ export interface BlocoPromo {
 
 export interface NewsletterContent {
   subject: string
-  carta: string // HTML (só <p> e <a>)
-  materias: Materia[] // 3 a 4
+  materias: Materia[] // 4 a 5
   numeroDaSemana?: NumeroDaSemana | null
   blocoPromo?: BlocoPromo | null
 }
@@ -109,16 +108,6 @@ export function renderNewsletterHTML(data: NewsletterContent, unsubscribeUrl?: s
     </div>
 
     <div style="padding:40px 40px 0 40px">
-
-      <!-- CARTA DO HENRIQUE -->
-      <div style="margin-bottom:8px">
-        <p style="font-family:Arial,sans-serif;font-size:12px;font-weight:bold;color:#1a5276;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 16px 0">Carta do Henrique</p>
-        <div style="font-family:Georgia,serif;font-size:16px;line-height:1.7;color:#374151">
-          ${data.carta}
-        </div>
-      </div>
-
-      ${HR}
 
       <!-- MATÉRIAS -->
       ${materiasHtml}

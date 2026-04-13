@@ -58,6 +58,32 @@ function escapeMd(text: string): string {
   return text.replace(/[_*`[]/g, '\\$&')
 }
 
+export async function sendNewsCandidateNotification(params: {
+  titulo: string
+  resumo: string
+  fonte: string
+  candidateId: string
+}): Promise<number> {
+  const keyboard = {
+    inline_keyboard: [[
+      { text: '✅ Aprovar', callback_data: `news_approve:${params.candidateId}` },
+      { text: '❌ Rejeitar', callback_data: `news_reject:${params.candidateId}` },
+    ]],
+  }
+
+  const text = [
+    `📰 *Notícia do dia*`,
+    '',
+    `*${escapeMd(params.titulo)}*`,
+    '',
+    escapeMd(params.resumo),
+    '',
+    `📎 Fonte: ${escapeMd(params.fonte || 'não informada')}`,
+  ].join('\n')
+
+  return sendTelegramMessage(text, keyboard)
+}
+
 export async function sendDraftNotification(params: {
   subject: string
   previewText: string
@@ -76,7 +102,7 @@ export async function sendDraftNotification(params: {
     '',
     `📌 *Temas:* ${escapeMd(params.subject)}`,
     '',
-    `📝 *Carta editorial:*`,
+    `📝 *Resumo:*`,
     `${escapeMd(preview)}${ellipsis}`,
     '',
     `🔗 [Visualizar draft completo](${previewUrl})`,
