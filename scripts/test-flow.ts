@@ -3,9 +3,9 @@
  * Não salva nada no banco, não afeta inscritos reais.
  *
  * Uso:
- *   npm run test:flow
+ *   npm run test:flow                       (fluxo completo: busca + geração + envio de email)
  *   npm run test:flow -- --to outro@email.com
- *   npm run test:flow -- --daily-only     (testa só a busca diária, sem gerar newsletter)
+ *   npm run test:flow -- --daily-only       (busca 3 notícias e envia para Telegram com botões)
  */
 
 import { config } from 'dotenv'
@@ -17,6 +17,7 @@ config({ path: resolve(process.cwd(), '.env.local') })
 import { Resend } from 'resend'
 import { searchDailyHealthAINews } from '../lib/ai/perplexity'
 import { generateNewsletter } from '../lib/ai/pipeline'
+import { sendNewsCandidateNotification } from '../lib/telegram'
 
 // ─── Argumentos ──────────────────────────────────────────────────────────────
 const toIndex = process.argv.indexOf('--to')
@@ -39,7 +40,7 @@ function logSection(title: string) {
 function checkEnv() {
   logSection('🔍  Verificando variáveis de ambiente')
   const required = DAILY_ONLY
-    ? ['PERPLEXITY_API_KEY']
+    ? ['PERPLEXITY_API_KEY', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID']
     : ['PERPLEXITY_API_KEY', 'OPENROUTER_API_KEY', 'RESEND_API_KEY', 'RESEND_FROM_EMAIL']
   let ok = true
   for (const key of required) {
@@ -149,10 +150,26 @@ async function main() {
   const dailyItems = await fetchDailyNews()
 
   if (DAILY_ONLY) {
+    logSection('📲  Enviando notícias para Telegram com botões de aprovação')
+
+    for (const item of dailyItems) {
+      // Use a fake ID since this is a test (not saved to DB)
+      const fakeId = `test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const msgId = await sendNewsCandidateNotification({
+        titulo: item.titulo,
+        resumo: item.resumo,
+        fonte: item.fonte,
+        candidateId: fakeId,
+      })
+      log('TELEGRAM', `✅  "${item.titulo}" — message_id: ${msgId}`)
+    }
+
     const elapsed = ((Date.now() - totalStart) / 1000).toFixed(1)
     logSection('✅  CONCLUÍDO (modo --daily-only)')
     console.log(`  Notícias encontradas: ${dailyItems.length}`)
-    console.log(`  Tempo total:          ${elapsed}s\n`)
+    console.log(`  Enviadas ao Telegram: ${dailyItems.length}`)
+    console.log(`  Tempo total:          ${elapsed}s`)
+    console.log(`  ⚠️  Botões são de teste — cliques não salvam no banco\n`)
     return
   }
 
