@@ -5,6 +5,7 @@
  * Uso:
  *   npm run test:flow
  *   npm run test:flow -- --to outro@email.com
+ *   npm run test:flow -- --daily-only     (testa só a busca diária, sem gerar newsletter)
  */
 
 import { config } from 'dotenv'
@@ -14,12 +15,13 @@ import { resolve } from 'path'
 config({ path: resolve(process.cwd(), '.env.local') })
 
 import { Resend } from 'resend'
-import { searchHealthAINews } from '../lib/ai/perplexity'
+import { searchDailyHealthAINews } from '../lib/ai/perplexity'
 import { generateNewsletter } from '../lib/ai/pipeline'
 
-// ─── Argumento --to ───────────────────────────────────────────────────────────
+// ─── Argumentos ──────────────────────────────────────────────────────────────
 const toIndex = process.argv.indexOf('--to')
 const TO_EMAIL = toIndex !== -1 ? process.argv[toIndex + 1] : 'moldergs@gmail.com'
+const DAILY_ONLY = process.argv.includes('--daily-only')
 
 // ─── Helpers de log ───────────────────────────────────────────────────────────
 function log(step: string, msg: string) {
@@ -36,7 +38,9 @@ function logSection(title: string) {
 // ─── Verificação de variáveis de ambiente ─────────────────────────────────────
 function checkEnv() {
   logSection('🔍  Verificando variáveis de ambiente')
-  const required = ['PERPLEXITY_API_KEY', 'OPENROUTER_API_KEY', 'RESEND_API_KEY', 'RESEND_FROM_EMAIL']
+  const required = DAILY_ONLY
+    ? ['PERPLEXITY_API_KEY']
+    : ['PERPLEXITY_API_KEY', 'OPENROUTER_API_KEY', 'RESEND_API_KEY', 'RESEND_FROM_EMAIL']
   let ok = true
   for (const key of required) {
     if (!process.env[key]) {
@@ -49,22 +53,33 @@ function checkEnv() {
   if (!ok) process.exit(1)
 }
 
-// ─── Etapa 1: Buscar notícias (Perplexity) ────────────────────────────────────
-async function fetchNews(): Promise<string> {
-  logSection('📰  Etapa 1/3 — Buscando notícias (Perplexity sonar-pro)')
-  log('PERPLEXITY', 'Iniciando busca de notícias de IA na saúde...')
+// ─── Etapa 1: Buscar notícias diárias (Perplexity) ───────────────────────────
+async function fetchDailyNews() {
+  logSection('📰  Etapa 1 — Buscando 3 notícias do dia (Perplexity sonar-pro)')
+  log('PERPLEXITY', 'Iniciando busca de notícias diárias de IA na saúde...')
 
-  const news = await searchHealthAINews()
+  const items = await searchDailyHealthAINews()
 
-  log('PERPLEXITY', `✅  ${news.length} caracteres de notícias recebidos`)
-  log('PERPLEXITY', `Prévia: ${news.slice(0, 200).replace(/\n/g, ' ')}...`)
+  log('PERPLEXITY', `✅  ${items.length} notícias recebidas:`)
+  items.forEach((item, i) => {
+    log('PERPLEXITY', `  ${i + 1}. ${item.titulo}`)
+    log('PERPLEXITY', `     Resumo: ${item.resumo.slice(0, 100)}...`)
+    log('PERPLEXITY', `     Fonte: ${item.fonte}`)
+  })
 
-  return news
+  return items
 }
 
-// ─── Etapa 2: Gerar newsletter (pipeline: 3 modelos + avaliador) ──────────────
-async function runGeneration(news: string): Promise<{ content: string; model: string; justification: string; subject: string }> {
-  logSection('🤖  Etapa 2/3 — Gerando newsletter (3 modelos em paralelo + avaliador)')
+// ─── Etapa 2: Formatar notícias como input do pipeline ────────────────────────
+function formatNewsForPipeline(items: Awaited<ReturnType<typeof searchDailyHealthAINews>>): string {
+  return items
+    .map((n, i) => `${i + 1}. ${n.titulo}\nResumo: ${n.resumo}\nFonte: ${n.fonte ?? 'não informada'}`)
+    .join('\n\n')
+}
+
+// ─── Etapa 3: Gerar newsletter (pipeline: 4 modelos + avaliador) ─────────────
+async function runGeneration(news: string) {
+  logSection('🤖  Etapa 2 — Gerando newsletter (4 modelos em paralelo + avaliador)')
 
   log('PIPELINE', 'Disparando modelos em paralelo...')
   const start = Date.now()
@@ -76,6 +91,7 @@ async function runGeneration(news: string): Promise<{ content: string; model: st
   log('PIPELINE', `🏆  Modelo vencedor: ${result.winningModel}`)
   log('PIPELINE', `   Justificativa: ${result.justification}`)
   log('PIPELINE', `   Subject: ${result.subject}`)
+  log('PIPELINE', `   Preview: ${result.previewText}`)
   log('PIPELINE', `   Modelos que responderam: ${result.allOutputs.map(o => o.model).join(', ')}`)
   result.allOutputs.forEach(o => log('PIPELINE', `   [${o.model}] ${o.content.length} chars`))
 
@@ -87,9 +103,9 @@ async function runGeneration(news: string): Promise<{ content: string; model: st
   }
 }
 
-// ─── Etapa 3: Enviar email (Resend) ──────────────────────────────────────────
+// ─── Etapa 4: Enviar email (Resend) ──────────────────────────────────────────
 async function sendTestEmail(html: string, subject: string): Promise<void> {
-  logSection(`📧  Etapa 3/3 — Enviando email para ${TO_EMAIL} (Resend)`)
+  logSection(`📧  Etapa 3 — Enviando email para ${TO_EMAIL} (Resend)`)
 
   const resend = new Resend(process.env.RESEND_API_KEY!)
   const from = `AI Health Newsletter <${process.env.RESEND_FROM_EMAIL ?? 'newsletter@seudominio.com.br'}>`
@@ -121,6 +137,7 @@ async function sendTestEmail(html: string, subject: string): Promise<void> {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   console.log('\n🚀  TEST FLOW — AI Health Newsletter')
+  console.log(`   Modo: ${DAILY_ONLY ? 'Busca diária apenas' : 'Fluxo completo (busca + geração + envio)'}`)
   console.log(`   Destino: ${TO_EMAIL}`)
   console.log(`   Data:    ${new Date().toLocaleString('pt-BR')}`)
 
@@ -128,7 +145,19 @@ async function main() {
 
   checkEnv()
 
-  const news = await fetchNews()
+  // Etapa 1: Buscar notícias diárias
+  const dailyItems = await fetchDailyNews()
+
+  if (DAILY_ONLY) {
+    const elapsed = ((Date.now() - totalStart) / 1000).toFixed(1)
+    logSection('✅  CONCLUÍDO (modo --daily-only)')
+    console.log(`  Notícias encontradas: ${dailyItems.length}`)
+    console.log(`  Tempo total:          ${elapsed}s\n`)
+    return
+  }
+
+  // Etapa 2-3: Gerar e enviar
+  const news = formatNewsForPipeline(dailyItems)
   const { content, model, justification, subject } = await runGeneration(news)
   await sendTestEmail(content, subject)
 
