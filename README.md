@@ -112,7 +112,7 @@ ai-health-newsletter/
 │   ├── admin-auth.ts               # HMAC admin authentication
 │   └── rate-limit.ts               # Rate limiting via Supabase
 ├── components/                     # React components (landing + admin)
-├── supabase/migrations/            # SQL schema (3 migrations)
+├── supabase/migrations/            # SQL schema (4 migrations)
 ├── scripts/                        # Setup and test scripts
 ├── docs/DEPLOY.md                  # Full deployment guide
 └── vercel.json                     # Cron job configuration
@@ -151,6 +151,7 @@ In the Supabase SQL Editor, run the migrations in order:
 1. `supabase/migrations/001_initial_schema.sql`
 2. `supabase/migrations/002_telegram_approval.sql`
 3. `supabase/migrations/003_rate_limits.sql`
+4. `supabase/migrations/004_daily_news_candidates.sql`
 
 ### Run
 
