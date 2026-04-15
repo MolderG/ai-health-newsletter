@@ -62,4 +62,7 @@ No Supabase → SQL Editor, execute o conteúdo de:
 - [ ] Formulário de inscrição funciona (email de confirmação chega)
 - [ ] Admin acessível: `https://newsletter.seudominio.com.br/admin`
 - [ ] "Gerar nova edição" funciona com APIs configuradas
-- [ ] Vercel Cron aparece em Settings → Crons (roda segundas 8h UTC = 5h Brasília)
+- [ ] Vercel Cron aparece em Settings → Crons com os 3 agendamentos:
+  - `daily-news`: seg-sáb 00:00 UTC (21:00 BRT do dia anterior)
+  - `generate`: dom 23:00 UTC (20:00 BRT)
+  - `send`: seg 12:00 UTC (09:00 BRT)
